@@ -1,0 +1,13 @@
+{
+  "name": "goflie-admin",
+  "main": "worker.js",
+  "compatibility_date": "2026-07-25",
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "movie",
+      "database_id": "e90d09ee-9104-4132-bfee-86f63d6941f9"
+    }
+  ]
+}
