@@ -1,63 +1,60 @@
- export default {
-      async fetch(request, env) {
-        const url = new URL(request.url);
+const { results } = await env.DB.prepare(
+  "SELECT * FROM links WHERE slug=? LIMIT 1"
+).bind(slug).all();
 
-        if (url.pathname === "/" || url.pathname === "/index.html") {
-          return fetch("https://tonghann65.github.io/prolite/");
-        }
+if (results.length) {
 
-        if (url.pathname === "/api/list") {
-          const { results } = await env.DB.prepare(
-            "SELECT * FROM links ORDER BY created_at DESC"
-          ).all();
-          return Response.json(results);
-        }
+  const link = results[0];
 
-        if (url.pathname === "/api/create" && request.method === "POST") {
-          const body = await request.json();
-          await env.DB.prepare(
-            "INSERT INTO links (slug, original_url, title, created_at) VALUES (?, ?, ?, ?)"
-          ).bind(
-            body.slug,
-            body.url,
-            body.title || "",
-            Date.now()
-          ).run();
-          return Response.json({ success: true });
-        }
+  const ua = (request.headers.get("User-Agent") || "").toLowerCase();
 
-        if (url.pathname === "/api/update" && request.method === "POST") {
-          const body = await request.json();
-          await env.DB.prepare(
-            "UPDATE links SET original_url=?, title=? WHERE slug=?"
-          ).bind(
-            body.url,
-            body.title || "",
-            body.slug
-          ).run();
-          return Response.json({ success: true });
-        }
+  const bots = [
+    "twitterbot",
+    "facebookexternalhit",
+    "telegrambot",
+    "discordbot",
+    "linkedinbot",
+    "slackbot",
+    "whatsapp"
+  ];
 
-        if (url.pathname.startsWith("/api/delete/")) {
-          const slug = url.pathname.split("/").pop();
-          await env.DB.prepare("DELETE FROM links WHERE slug=?")
-            .bind(slug)
-            .run();
-          return Response.json({ success: true });
-        }
+  const isBot = bots.some(bot => ua.includes(bot));
 
-        const slug = url.pathname.substring(1);
+  if (isBot) {
 
-        if (slug && !slug.startsWith("api")) {
-          const { results } = await env.DB.prepare(
-            "SELECT original_url FROM links WHERE slug=? LIMIT 1"
-          ).bind(slug).all();
+    const title = link.title || "Watch Video";
 
-          if (results.length) {
-            return Response.redirect(results[0].original_url, 302);
-          }
-        }
+    const description = "Tap to play";
 
-        return new Response("404 Not Found", { status: 404 });
+    const image = link.image || "https://img.lightshot.app/If9jBYpOS6exLGJTgUQLdw.png";
+
+    return new Response(`<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="utf-8">
+
+<title>${title}</title>
+
+<meta property="og:type" content="video.other">
+<meta property="og:title" content="${title}">
+<meta property="og:description" content="${description}">
+<meta property="og:image" content="${image}">
+<meta property="og:url" content="${request.url}">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${title}">
+<meta name="twitter:description" content="${description}">
+<meta name="twitter:image" content="${image}">
+
+</head>
+<body></body>
+</html>`, {
+      headers: {
+        "Content-Type": "text/html; charset=UTF-8"
       }
-    }
+    });
+  }
+
+  return Response.redirect(link.original_url, 302);
+}
